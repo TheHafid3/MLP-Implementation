@@ -17,14 +17,10 @@ df.loc[df['types'] == 'versicolor','fakta1'] = 0
 df.loc[df['types'] == 'virginica','fakta2'] = 0
 df = df.drop(['types'], axis = 1)
 
-training = []
-training.append(pd.concat([df.iloc[:40], df.iloc[50:90], df.iloc[100:140]]))
+dataset = df.head(150).values.tolist()
 
-training_dataset = df.head(120).values.tolist()
-
-validasi = []
-validasi.append(pd.concat([df.iloc[40:50], df.iloc[90:100], df.iloc[140:]]))
-validasi_dataset = df.head(30).values.tolist()
+training_dataset = dataset[:40]+dataset[50:90]+dataset[100:140]
+validasi_dataset = dataset[40:50]+dataset[90:100]+dataset[140:]
 
 def hasil(row, theta, bias):
         hasil = bias
@@ -56,45 +52,6 @@ def derivative_hidd(fakta, out_result, theta_for_out_each_hidd, hidd_result, x):
                 sum_bla += new_something
         return sum_bla * hidd_result * (1-hidd_result) * x
 
-def valid(train, hiddenTheta, outputTheta, bias1, bias2):
-        prediksi = [0.0,0.0]
-        keluaran = [0.0,0.0]
-        sum_errorvalid = 0.0
-        counter = 0
-        result_hidd = [0.0,0.0]
-        result_out = [0.0,0.0]
-        hidd_act = [0.0,0.0]
-        for j in range(len(train)):
-                error_tot = 0.0
-#forward pass
-                for i in range(len(result_hidd)):
-                        if i==0:
-                                result_hidd[i] = hasil(train[j],hiddenTheta[:4],bias1)
-                                hidd_act[i] = act(result_hidd[i])
-                        else:
-                                result_hidd[i] = hasil(train[j],hiddenTheta[4:],bias1)
-                                hidd_act[i] = act(result_hidd[i])
-        
-                for i in range(len(result_out)):
-                        if i==0:
-                                result_out[i] = hasil(hidd_act,outputTheta[:2],bias2)
-                        else:
-                                result_out[i] = hasil(hidd_act,outputTheta[2:],bias2)
-
-                for i in range(len(result_out)):
-                        error_tot += err(training_dataset[j][i+4],act(result_out[i]))
-                        if act(result_out[i]) >= 0.5:
-                                prediksi[i] = 1.0
-                        else: prediksi[i] = 0.0
-
-                if (training_dataset[j][4] == prediction[0] and training_dataset[j][5] == prediction[1]):
-                        counter+=1
-                sum_errorvalid += error_tot
-        keluaran[0] = sum_errorvalid / len(train)
-        keluaran[1] = counter/len(train)
-        return keluaran
-        
-
 theta_for_hidden = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
 theta_for_output = [0.45,0.55,0.65,0.75]
 bias1 = 0.5
@@ -104,7 +61,11 @@ hidden_result = [0.0,0.0]
 activation_hidden = [0.0,0.0]
 output_result = [0.0,0.0]
 prediction=[0.0,0.0]
-n_epoch = 5
+prediksi_validasi=[0.0,0.0]
+output_derivative = [0.0,0.0,0.0,0.0]
+theta_out_hidd_for_derivative = [0.0,0.0,0.0,0.0]
+hidden_derivative = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]
+n_epoch = 500
 accuracy_training = []
 error_training = []
 accuracy_validasi = []
@@ -113,9 +74,10 @@ error_validasi = []
 for n in range(n_epoch):
         sum_error = 0.0
         ctr = 0
-        output_derivative = []
-        theta_out_hidd_for_derivative = []
-        hidden_derivative = []
+        ctr_validasi = 0
+        sum_error_validasi = 0.0
+        #print(theta_for_hidden)
+#training
         for j in range(len(training_dataset)):
                 error_total = 0.0
 #forward pass
@@ -139,40 +101,70 @@ for n in range(n_epoch):
                         if act(output_result[i]) >= 0.5:
                                 prediction[i] = 1.0
                         else: prediction[i] = 0.0
+                        
                 if (training_dataset[j][4] == prediction[0] and training_dataset[j][5] == prediction[1]):
                         ctr = ctr + 1
 
-                for i in range(len(output_result)):
-                        for j in range(len(hidden_result)):
-                                output_derivative.append(derivative_out(training_dataset[j][i+4],act(output_result[i]),hidden_result[j]))
+                output_derivative[0] = derivative_out(training_dataset[j][4],act(output_result[0]),hidden_result[0])
+                output_derivative[1] = derivative_out(training_dataset[j][4],act(output_result[0]),hidden_result[1])
+                output_derivative[2] = derivative_out(training_dataset[j][5],act(output_result[1]),hidden_result[0])
+                output_derivative[3] = derivative_out(training_dataset[j][5],act(output_result[1]),hidden_result[1])
 
                 for i in range(len(theta_for_output)):
                         theta_for_output[i] = update(theta_for_output[i],alpha,output_derivative[i])
 
-                theta_out_hidd_for_derivative.append(theta_for_output[0])
-                theta_out_hidd_for_derivative.append(theta_for_output[2])
-                theta_out_hidd_for_derivative.append(theta_for_output[1])
-                theta_out_hidd_for_derivative.append(theta_for_output[3])
+                theta_out_hidd_for_derivative[0]=theta_for_output[0]
+                theta_out_hidd_for_derivative[1]=theta_for_output[2]
+                theta_out_hidd_for_derivative[2]=theta_for_output[1]
+                theta_out_hidd_for_derivative[3]=theta_for_output[3]
 
-                for j in range(len(hidden_result)):
-                        for i in range(4):
-                                if j == 0:
-                                        hidden_derivative.append(derivative_hidd(training_dataset[j][4:6],output_result,theta_out_hidd_for_derivative[:2],act(hidden_result[j]),training_dataset[j][i]))
-                                else :
-                                        hidden_derivative.append(derivative_hidd(training_dataset[j][4:6],output_result,theta_out_hidd_for_derivative[2:],act(hidden_result[j]),training_dataset[j][i]))
+                for k in range(len(hidden_derivative)):
+                        for m in range(len(hidden_result)):
+                                for i in range(4):
+                                        if m == 0:
+                                                hidden_derivative[k]=derivative_hidd(training_dataset[j][4:6],output_result,theta_out_hidd_for_derivative[:2],act(hidden_result[m]),training_dataset[j][i])
+                                        else :
+                                                hidden_derivative[k]=derivative_hidd(training_dataset[j][4:6],output_result,theta_out_hidd_for_derivative[2:],act(hidden_result[m]),training_dataset[j][i])
                                  
                 for i in range(len(theta_for_hidden)):
                         theta_for_hidden[i] = update(theta_for_hidden[i],alpha,hidden_derivative[i])
 
-                #print(error_total)
                 sum_error += error_total
+                
         error_training.append(sum_error / len(training_dataset))
         accuracy_training.append(ctr/len(training_dataset))
+#validasi
+        for z in range(len(validasi_dataset)):
+                error_total = 0.0
+#forward pass
+                for i in range(len(hidden_result)):
+                        if i==0:
+                                hidden_result[i] = hasil(validasi_dataset[z],theta_for_hidden[:4],bias1)
+                                activation_hidden[i]=act(hidden_result[i])
+                        else:
+                                hidden_result[i] = hasil(validasi_dataset[z],theta_for_hidden[4:],bias1)
+                                activation_hidden[i]=act(hidden_result[i])
         
-        x = valid(validasi_dataset, theta_for_hidden, theta_for_output, bias1, bias2)
-        error_validasi.append(x[0])
-        accuracy_validasi.append(x[1])
+                for i in range(len(output_result)):
+                        if i==0:
+                                output_result[i] = hasil(activation_hidden,theta_for_output[:2],bias2)
+                        else:
+                                output_result[i] = hasil(activation_hidden,theta_for_output[2:],bias2)
+
+                for i in range(len(output_result)):
+                        error_total += err(validasi_dataset[z][i+4],act(output_result[i]))
+                        if act(output_result[i]) >= 0.5:
+                                prediction[i] = 1.0
+                        else: prediction[i] = 0.0
+                        
+                if (validasi_dataset[z][4] == prediction[0] and validasi_dataset[z][5] == prediction[1]):
+                        ctr_validasi = ctr_validasi + 1
+
+                sum_error_validasi += error_total
         
+        error_validasi.append(sum_error_validasi / len(validasi_dataset))
+        accuracy_validasi.append(ctr_validasi / len(validasi_dataset))
+
 plt.figure('Accuracy (alpha = 0.1)')
 plt.plot(accuracy_training,'b-', label='training')
 plt.plot(accuracy_validasi,'r-', label='validasi')
